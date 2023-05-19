@@ -105,7 +105,9 @@ class Timeslice:
 
         # sort by time
         slices = {k: slices[k] for k in sorted(slices)}
-        timing_points: list[tuple[int, float]] = [(item["time"], item["beatLength"]) for item in timing_points]
+        timing_points: list[tuple[int, float]] = [(item["time"], item["beatLength"])
+                                                  for item in timing_points
+                                                  if item["beatLength"] >= 0]
         timing_points: deque[tuple[int, float]] = deque(
             sorted(timing_points, key=lambda tuple: tuple[0]))  # sort by time
 
