@@ -62,9 +62,13 @@ def start():
 
     tqdm.write(f"{len(filtered_md5s)} songs accepted")
 
+    filtered_md5s = sorted(filtered_md5s)
+    filtered_md5s = deque(filtered_md5s[5:])
+
     # this is this scuffed to not have to load all songs into memory all at once and rather iterate over them
     rows: Cursor = osudb.select_all_song_info()
     it = iter(songdb.select_songs(filtered_md5s))
+
     with tqdm(total=len(filtered_md5s), desc="applying") as pbar:
         for row in rows:
             if not filtered_md5s:
@@ -72,12 +76,18 @@ def start():
 
             song_info: Song.Info = Song.Info(*row)
 
-            if filtered_md5s[0] != song_info.md5_hash:
+            if filtered_md5s[0] > song_info.md5_hash:
                 continue
 
             filtered_md5s.popleft()  # pop md5
 
-            song: Song = songdb.decode_to_song(next(it)[0], song_info)
+            data = next(it)[0]
+
+            song: Song = songdb.decode_to_song(data, song_info)
+
+            if song.dict["md5"] != song.info.md5_hash:
+                tqdm.write("??? md5 mismatch ???")
+
             main.songs_apply(song)
 
             pbar.update(1)

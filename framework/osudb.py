@@ -17,7 +17,7 @@ def select_all_song_info() -> sqlite3.Cursor:
         print("no song info found in db")
         return
     c.execute(
-        "SELECT * FROM song_info;"
+        "SELECT * FROM song_info ORDER BY md5_hash ASC;"
     )
     return c
 

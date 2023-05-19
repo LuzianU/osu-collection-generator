@@ -57,7 +57,7 @@ def select_song(song_info: Song.Info):
 
 def select_songs(md5s: list[str]) -> Cursor:
     cur = _conn.cursor()
-    return cur.execute("SELECT song FROM songs WHERE md5 IN ({0})".format(', '.join('?' for _ in md5s)), md5s)
+    return cur.execute("SELECT song FROM songs WHERE md5 IN ({0}) ORDER BY md5 ASC".format(', '.join('?' for _ in md5s)), md5s)
 
 
 def decode_to_song(data: str, song_info: Song.Info) -> Song:
