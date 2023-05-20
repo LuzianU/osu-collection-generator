@@ -7,7 +7,7 @@ import buffer_io as buffer_io
 
 class Collection:
     def __init__(self) -> None:
-        self.version: str = datetime.today().strftime('%Y%m%d')
+        self.version: int = int(datetime.today().strftime('%Y%m%d'))
         self.collections: dict[str, list[str]] = {}
 
     def read(self, file: str) -> None:
@@ -28,10 +28,10 @@ class Collection:
             buffer_io.write_uint(f, self.version)
             buffer_io.write_uint(f, len(self.collections))
             for name, md5s in self.collections.items():
-                buffer_io.write_string(f, name)
+                buffer_io.write_string(f, str(name))
                 buffer_io.write_uint(f, len(md5s))
                 for md5 in md5s:
-                    buffer_io.write_string(f, md5)
+                    buffer_io.write_string(f, str(md5))
 
 
 @dataclass

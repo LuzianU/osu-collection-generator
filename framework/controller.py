@@ -91,3 +91,5 @@ def start():
             main.songs_apply(song)
 
             pbar.update(1)
+
+    main.on_end()
