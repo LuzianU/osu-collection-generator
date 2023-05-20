@@ -15,10 +15,12 @@ def print_slice_as_beatmap(slice: Timeslice, reverse_holds=False) -> None:
                     row += "╚═╝│" if reverse_holds else "╔═╗│"
             else:
                     row += "   │"
-    row += "\tbpm={:6.2f}, time={:}".format(slice.bpm, slice.time)
+    row += "\tbpm={:6.2f}, time={:}".format(slice.bpm, slice.time)            
     
-    if slice.weighted_count:
+    if slice.weighted_count is not None:
         row += f", weighted_count={round(slice.weighted_count, 2)}"
+    if slice.chordjack_weight is not None:
+        row += f", chordjack_weight={round(slice.chordjack_weight, 2)}"
     
     tqdm.write(row)
 
