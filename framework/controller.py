@@ -83,12 +83,7 @@ def start():
 
             data = next(it)[0]
 
-            song: Song = songdb.decode_to_song(data, song_info)
-
-            if song.dict["md5"] != song.info.md5_hash:
-                tqdm.write("??? md5 mismatch ???")
-
-            main.songs_apply(song)
+            main.songs_apply(data, song_info)
 
             pbar.update(1)
 
