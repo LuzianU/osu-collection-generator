@@ -1,4 +1,5 @@
 from __future__ import annotations
+import pickle
 import sqlite3
 from sqlite3 import Cursor, Error
 import zlib
@@ -11,7 +12,7 @@ DB_NAME: str = r"_gen_songs.db"
 def _create_table():
     sql = """CREATE TABLE IF NOT EXISTS songs (
                 md5 TEXT PRIMARY KEY NOT NULL,
-                song BLOB
+                osufile BLOB
             );"""
     try:
         c = _conn.cursor()
@@ -31,12 +32,11 @@ def create_connection():
 
 
 def insert_song_dict(song_dict: dict):
-    sql = ''' INSERT OR IGNORE INTO songs(md5,song)
+    sql = ''' INSERT OR IGNORE INTO songs(md5,osufile)
               VALUES(?,?) '''
     cur = _conn.cursor()
 
-    msg = json.dumps(song_dict, ensure_ascii=False)
-    compressed = zlib.compress(msg.encode("utf-8"))
+    compressed = zlib.compress(pickle.dumps(song_dict))
 
     cur.execute(sql, (song_dict["md5"], compressed))
     _conn.commit()
@@ -45,7 +45,7 @@ def insert_song_dict(song_dict: dict):
 
 def select_song(song_info: Song.Info):
     cur = _conn.cursor()
-    cur.execute("SELECT song FROM songs WHERE md5=?", (song_info.md5_hash,))
+    cur.execute("SELECT osufile FROM songs WHERE md5=?", (song_info.md5_hash,))
 
     data = cur.fetchone()
 
@@ -57,12 +57,11 @@ def select_song(song_info: Song.Info):
 
 def select_songs(md5s: list[str]) -> Cursor:
     cur = _conn.cursor()
-    return cur.execute("SELECT song FROM songs WHERE md5 IN ({0}) ORDER BY md5 ASC".format(', '.join('?' for _ in md5s)), md5s)
+    return cur.execute("SELECT osufile FROM songs WHERE md5 IN ({0}) ORDER BY md5 ASC".format(', '.join('?' for _ in md5s)), md5s)
 
 
 def decode_to_song(data: str, song_info: Song.Info) -> Song:
-    decompressed = zlib.decompress(data).decode("utf-8")
-    dict = json.loads(decompressed)
+    dict = pickle.loads(zlib.decompress(data))
     return Song(song_info, dict)
 
 
