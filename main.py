@@ -57,8 +57,6 @@ def songs_apply(encoded_song_data: str, song_info: Song.Info):
         to decode it
     """
 
-    song: Song = songdb.decode_to_song(encoded_song_data, song_info)
-
     # use tqdm.write() instead of print() here qdm.write(song.info.song_title)
 
     # useless.print_slices_as_beatmap(slices[:10])
@@ -69,9 +67,49 @@ def songs_apply(encoded_song_data: str, song_info: Song.Info):
 
     # tqdm.write(f"{song.info.song_title} [{song.info.difficulty}]")
 
-    # slices: list[Timeslice] = Timeslice.generate_timeslices(song) for mania
+    # 1:36 min without compression
+    # 1:33 min with compression ???
+    slices: list[Timeslice] = storagedb.select_object("slices", song_info.md5_hash, decompress=True)
 
-    # use storagedb to easily read/write any object to a database
+    if slices is None:
+        song: Song = songdb.decode_to_song(encoded_song_data, song_info)
+        slices: list[Timeslice] = Timeslice.generate_timeslices(song)
+        storagedb.insert_object("slices", song_info.md5_hash, slices, compress=True)
+
+    column_count = song_info.circle_size
+
+    if not slices:
+        return
+
+    prev_slice = None
+
+    for slice in slices:
+        # [Note.NOTE, Note.EMPTY, Note.HOLD, Note.NOTE, Note.EMPTY, Note.NOTE, Note.NOTE] returns {0,3,5,6}
+        slice.note_indices = {i for i, x in enumerate(slice.notes) if x == Note.NOTE}
+        slice.weighted_count = 1 if len(slice.note_indices) >= 3 else 0
+        slice.chordjack_weight = 0
+
+        if prev_slice:  # skip first iteration
+            intersection = slice.note_indices & prev_slice.note_indices  # set intersection -> overlapping notes
+            sym_difference = slice.note_indices ^ prev_slice.note_indices  # set symmetric difference -> non-overlapping notes
+
+            factor = 1 if len(intersection) > 0 and len(sym_difference) > 0 else 0
+            slice.chordjack_weight = prev_slice.weighted_count * slice.weighted_count * factor
+
+        prev_slice = slice
+        # useless.print_slice_as_beatmap(slice)
+
+    avg = sum(map(lambda x: x.chordjack_weight, slices)) / len(slices)  # average of all chordjack_weights in slices
+
+    key = round(avg, 1)
+    if key < 1:
+        key = str(key) + " - " + str(round(key+.1, 1))
+    else:
+        key = str(key)
+
+    if key not in collection.collections:
+        collection.collections[key] = []
+    collection.collections[key].append(song_info.md5_hash)
 
 
 def on_end() -> None:
@@ -79,6 +117,7 @@ def on_end() -> None:
         use this to write collections to file
     """
     # collection.write(osu_collection_file) # OVERWRITE(!) collection file
+    collection.write("collection.db")
 
 
 if __name__ == "__main__":
