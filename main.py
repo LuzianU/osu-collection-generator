@@ -6,6 +6,7 @@ from osuclasses import Song, Collection
 import controller as controller
 from timeslice import Timeslice, Note
 import songdb
+import storagedb
 import useless
 
 OSU_DB_FILE: str = "C:\Games\osu!\osu!.db"
@@ -69,6 +70,8 @@ def songs_apply(encoded_song_data: str, song_info: Song.Info):
     # tqdm.write(f"{song.info.song_title} [{song.info.difficulty}]")
 
     # slices: list[Timeslice] = Timeslice.generate_timeslices(song) for mania
+
+    # use storagedb to easily read/write any object to a database
 
 
 def on_end() -> None:

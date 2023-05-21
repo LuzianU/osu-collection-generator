@@ -1,6 +1,7 @@
 from __future__ import annotations
 import pickle
 import sqlite3
+import lz4.frame
 from sqlite3 import Error
 
 _DB_NAME: str = r"_gen_storage.db"
@@ -43,7 +44,7 @@ def exists_column(column_name: str) -> bool:
     return cur.fetchone()[0] == 1
 
 
-def insert_object(column_name: str, md5: str, object: object, override=True) -> None:
+def insert_object(column_name: str, md5: str, object: object, override: bool = True, compress: bool = False) -> None:
     if column_name == "md5":
         raise Exception(f"invalid name: {column_name}")
 
@@ -55,6 +56,8 @@ def insert_object(column_name: str, md5: str, object: object, override=True) -> 
 
     sql = f"INSERT OR IGNORE INTO storage (md5, {column_name}) VALUES (?, ?)"
     data = pickle.dumps(object)
+    if compress:
+        data = lz4.frame.compress(data)
     cur.execute(sql, (md5, data))
 
     if override:
@@ -64,7 +67,7 @@ def insert_object(column_name: str, md5: str, object: object, override=True) -> 
     _conn.commit()
 
 
-def select_object(column_name: str, md5: str, default_value: object = None) -> object:
+def select_object(column_name: str, md5: str, default_value: object = None, decompress: bool = False) -> object:
     if column_name == "md5":
         raise Exception(f"invalid name: {column_name}")
 
@@ -73,7 +76,10 @@ def select_object(column_name: str, md5: str, default_value: object = None) -> o
 
     try:
         cur.execute(f"SELECT {column_name} FROM storage WHERE md5=?", (md5,))
-        return pickle.loads(cur.fetchone()[0])
+        data = cur.fetchone()[0]
+        if decompress:
+            data = lz4.frame.decompress(data)
+        return pickle.loads(data)
     except:
         return default_value
 

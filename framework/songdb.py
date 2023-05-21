@@ -2,7 +2,7 @@ from __future__ import annotations
 import pickle
 import sqlite3
 from sqlite3 import Cursor, Error
-import zlib
+import lz4.frame
 import json
 from osuclasses import Song
 
@@ -36,7 +36,7 @@ def insert_song_dict(song_dict: dict):
               VALUES(?,?) '''
     cur = _conn.cursor()
 
-    compressed = zlib.compress(pickle.dumps(song_dict))
+    compressed = lz4.frame.compress(pickle.dumps(song_dict))
 
     cur.execute(sql, (song_dict["md5"], compressed))
     _conn.commit()
@@ -61,7 +61,7 @@ def select_songs(md5s: list[str]) -> Cursor:
 
 
 def decode_to_song(data: str, song_info: Song.Info) -> Song:
-    dict = pickle.loads(zlib.decompress(data))
+    dict = pickle.loads(lz4.frame.decompress(data))
     return Song(song_info, dict)
 
 
