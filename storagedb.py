@@ -73,7 +73,7 @@ def select_object(column_name: str, md5: str, default_value: object = None) -> o
 
     try:
         cur.execute(f"SELECT {column_name} FROM storage WHERE md5=?", (md5,))
-        return pickle.loads(object[0])
+        return pickle.loads(cur.fetchone()[0])
     except:
         return default_value
 
