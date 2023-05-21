@@ -16,6 +16,7 @@ OSU_SONGS_FOLDER: str = "E:\Games\osu!\Songs"
 RESCAN_OSU_DB: bool = False
 
 collection: Collection = Collection()
+collection_baka: Collection = Collection()
 
 
 def on_start() -> None:
@@ -23,6 +24,7 @@ def on_start() -> None:
         use this method to read collection or initialize other variables
     """
     # collection.read(OSU_COLLECTION_FILE)
+    collection_baka.read("uruha.db")
 
 
 def songs_filter(song_info: Song.Info) -> bool:
@@ -33,7 +35,8 @@ def songs_filter(song_info: Song.Info) -> bool:
     """
 
     # return song_info.gameplay_mode == 3 and song_info.md5_hash in collection.collections["🎹 LN"]  # only accept songs in collection
-    # return any(song_info.md5_hash in md5s for md5s in collection.collections.values()) check if song is present in any collection
+    # check if song is present in any collection
+    # return any(song_info.md5_hash in md5s for md5s in collection_baka.collections.values())
 
     if song_info.gameplay_mode != 3:  # 3 is mania
         return False
@@ -69,6 +72,7 @@ def songs_apply(encoded_song_data: str, song_info: Song.Info):
 
     # 1:36 min without compression
     # 1:33 min with compression ???
+
     slices: list[Timeslice] = storagedb.select_object("slices", song_info.md5_hash, decompress=True)
 
     if slices is None:
@@ -81,27 +85,43 @@ def songs_apply(encoded_song_data: str, song_info: Song.Info):
     if not slices:
         return
 
-    prev_slice = None
+    if False:
+        prev_slice = None
+        for slice in slices:
+            # [Note.NOTE, Note.EMPTY, Note.HOLD, Note.NOTE, Note.EMPTY, Note.NOTE, Note.NOTE] returns {0,3,5,6}
+            slice.note_indices = {i for i, x in enumerate(slice.notes) if x == Note.NOTE}
+            slice.weighted_count = 1 if len(slice.note_indices) >= 3 else 0
+            slice.chordjack_weight = 0
+
+            if prev_slice:  # skip first iteration
+                intersection = slice.note_indices & prev_slice.note_indices  # set intersection -> overlapping notes
+                sym_difference = slice.note_indices ^ prev_slice.note_indices  # set symmetric difference -> non-overlapping notes
+
+                factor = 1 if len(intersection) > 0 and len(sym_difference) > 0 else 0
+                slice.chordjack_weight = prev_slice.weighted_count * slice.weighted_count * factor
+
+            prev_slice = slice
+            # useless.print_slice_as_beatmap(slice)
 
     for slice in slices:
         # [Note.NOTE, Note.EMPTY, Note.HOLD, Note.NOTE, Note.EMPTY, Note.NOTE, Note.NOTE] returns {0,3,5,6}
         slice.note_indices = {i for i, x in enumerate(slice.notes) if x == Note.NOTE}
-        slice.weighted_count = 1 if len(slice.note_indices) >= 3 else 0
+        slice.weighted_count = 1 if len(slice.note_indices) >= 2 else 0
         slice.chordjack_weight = 0
 
-        if prev_slice:  # skip first iteration
-            intersection = slice.note_indices & prev_slice.note_indices  # set intersection -> overlapping notes
-            sym_difference = slice.note_indices ^ prev_slice.note_indices  # set symmetric difference -> non-overlapping notes
+    for index, slice in enumerate(slices[:-1]):  # slices except last element
+        next_slice = slices[index + 1]
+        intersection = slice.note_indices & next_slice.note_indices  # set intersection -> overlapping notes
 
-            factor = 1 if len(intersection) > 0 and len(sym_difference) > 0 else 0
-            slice.chordjack_weight = prev_slice.weighted_count * slice.weighted_count * factor
-
-        prev_slice = slice
-        # useless.print_slice_as_beatmap(slice)
+        if len(intersection) > 0:  # qualify as chordjack if at least one overlaps
+            slice.chordjack_weight = slice.weighted_count
 
     avg = sum(map(lambda x: x.chordjack_weight, slices)) / len(slices)  # average of all chordjack_weights in slices
 
     key = round(avg, 1)
+
+    # tqdm.write(f"{key} = {song_info.song_title} [{song_info.difficulty}]")
+
     if key < 1:
         key = str(key) + " - " + str(round(key+.1, 1))
     else:
