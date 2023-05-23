@@ -1,9 +1,11 @@
 from __future__ import annotations
+
+import json
 import pickle
 import sqlite3
 from sqlite3 import Cursor, Error
+
 import lz4.frame
-import json
 from osuclasses import Song
 
 DB_NAME: str = r"_gen_songs.db"
@@ -22,7 +24,6 @@ def _create_table():
 
 
 def create_connection():
-    """ create a database connection to a SQLite database """
     try:
         global _conn
         _conn = sqlite3.connect(DB_NAME)
@@ -32,8 +33,8 @@ def create_connection():
 
 
 def insert_song_dict(song_dict: dict):
-    sql = ''' INSERT OR IGNORE INTO songs(md5,osufile)
-              VALUES(?,?) '''
+    sql = """ INSERT OR IGNORE INTO songs(md5,osufile)
+              VALUES(?,?) """
     cur = _conn.cursor()
 
     compressed = lz4.frame.compress(pickle.dumps(song_dict))
@@ -57,7 +58,9 @@ def select_song(song_info: Song.Info):
 
 def select_songs(md5s: list[str]) -> Cursor:
     cur = _conn.cursor()
-    return cur.execute("SELECT osufile FROM songs WHERE md5 IN ({0}) ORDER BY md5 ASC".format(', '.join('?' for _ in md5s)), md5s)
+    return cur.execute(
+        "SELECT osufile FROM songs WHERE md5 IN ({0}) ORDER BY md5 ASC".format(", ".join("?" for _ in md5s)), md5s
+    )
 
 
 def decode_to_song(data: str, song_info: Song.Info) -> Song:
@@ -65,7 +68,7 @@ def decode_to_song(data: str, song_info: Song.Info) -> Song:
     return Song(song_info, dict)
 
 
-def select_md5s() -> set:
+def select_md5s() -> set | None:
     cur = _conn.cursor()
     cur.execute("SELECT md5 FROM songs")
 

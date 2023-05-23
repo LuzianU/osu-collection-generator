@@ -1,19 +1,17 @@
 from __future__ import annotations
-import math
-import sqlite3
-from tqdm import tqdm
-from osuclasses import Song, Collection
+
 import controller as controller
-from timeslice import Timeslice, Note
 import songdb
+from osuclasses import Collection, Song
+
 import storagedb
-import useless
+from timeslice import Note, Timeslice
 
 OSU_DB_FILE: str = "C:\Games\osu!\osu!.db"
 OSU_COLLECTION_FILE: str = "C:\Games\osu!\collection.db"
 OSU_SONGS_FOLDER: str = "E:\Games\osu!\Songs"
 # either change this to True or delte _gen_osu!.db to rescan original osu!.db
-RESCAN_OSU_DB: bool = False
+RESCAN_OSU_DB: bool = True
 
 collection: Collection = Collection()
 collection_baka: Collection = Collection()
@@ -21,17 +19,17 @@ collection_baka: Collection = Collection()
 
 def on_start() -> None:
     """
-        use this method to read collection or initialize other variables
+    use this method to read collection or initialize other variables
     """
     # collection.read(OSU_COLLECTION_FILE)
     collection_baka.read("uruha.db")
 
 
 def songs_filter(song_info: Song.Info) -> bool:
-    """ 
-        specify if given song information should be kept in pool of songs
-        song_info is what's available via osu!.db
-        make sure to return True for songs to keep
+    """
+    specify if given song information should be kept in pool of songs
+    song_info is what's available via osu!.db
+    make sure to return True for songs to keep
     """
 
     # return song_info.gameplay_mode == 3 and song_info.md5_hash in collection.collections["🎹 LN"]  # only accept songs in collection
@@ -54,10 +52,10 @@ def songs_filter(song_info: Song.Info) -> bool:
 
 
 def songs_apply(encoded_song_data: str, song_info: Song.Info):
-    """ 
-        this method gets called for every song that got accepted by songs_filter
-        song: Song = songdb.decode_to_song(encoded_song_data, song_info)
-        to decode it
+    """
+    this method gets called for every song that got accepted by songs_filter
+    song: Song = songdb.decode_to_song(encoded_song_data, song_info)
+    to decode it
     """
 
     # use tqdm.write() instead of print() here qdm.write(song.info.song_title)
@@ -73,7 +71,7 @@ def songs_apply(encoded_song_data: str, song_info: Song.Info):
     # 1:36 min without compression
     # 1:33 min with compression ???
 
-    slices: list[Timeslice] = storagedb.select_object("slices", song_info.md5_hash, decompress=True)
+    slices: list[Timeslice] = storagedb.select_object("slices", song_info.md5_hash, decompress=True)  # type: ignore
 
     if slices is None:
         song: Song = songdb.decode_to_song(encoded_song_data, song_info)
@@ -85,24 +83,6 @@ def songs_apply(encoded_song_data: str, song_info: Song.Info):
     if not slices:
         return
 
-    if False:
-        prev_slice = None
-        for slice in slices:
-            # [Note.NOTE, Note.EMPTY, Note.HOLD, Note.NOTE, Note.EMPTY, Note.NOTE, Note.NOTE] returns {0,3,5,6}
-            slice.note_indices = {i for i, x in enumerate(slice.notes) if x == Note.NOTE}
-            slice.weighted_count = 1 if len(slice.note_indices) >= 3 else 0
-            slice.chordjack_weight = 0
-
-            if prev_slice:  # skip first iteration
-                intersection = slice.note_indices & prev_slice.note_indices  # set intersection -> overlapping notes
-                sym_difference = slice.note_indices ^ prev_slice.note_indices  # set symmetric difference -> non-overlapping notes
-
-                factor = 1 if len(intersection) > 0 and len(sym_difference) > 0 else 0
-                slice.chordjack_weight = prev_slice.weighted_count * slice.weighted_count * factor
-
-            prev_slice = slice
-            # useless.print_slice_as_beatmap(slice)
-
     for slice in slices:
         # [Note.NOTE, Note.EMPTY, Note.HOLD, Note.NOTE, Note.EMPTY, Note.NOTE, Note.NOTE] returns {0,3,5,6}
         slice.note_indices = {i for i, x in enumerate(slice.notes) if x == Note.NOTE}
@@ -113,7 +93,9 @@ def songs_apply(encoded_song_data: str, song_info: Song.Info):
         next_slice = slices[index + 1]
         intersection = slice.note_indices & next_slice.note_indices  # set intersection -> overlapping notes
 
-        if len(intersection) > 0:  # qualify as chordjack if at least one overlaps
+        if (
+            len(intersection) > 0 and (next_slice.time - slice.time) < 335
+        ):  # qualify as chordjack if at least one overlaps
             slice.chordjack_weight = slice.weighted_count
 
     avg = sum(map(lambda x: x.chordjack_weight, slices)) / len(slices)  # average of all chordjack_weights in slices
@@ -123,7 +105,7 @@ def songs_apply(encoded_song_data: str, song_info: Song.Info):
     # tqdm.write(f"{key} = {song_info.song_title} [{song_info.difficulty}]")
 
     if key < 1:
-        key = str(key) + " - " + str(round(key+.1, 1))
+        key = str(key) + " - " + str(round(key + 0.1, 1))
     else:
         key = str(key)
 
@@ -133,8 +115,8 @@ def songs_apply(encoded_song_data: str, song_info: Song.Info):
 
 
 def on_end() -> None:
-    """ 
-        use this to write collections to file
+    """
+    use this to write collections to file
     """
     # collection.write(osu_collection_file) # OVERWRITE(!) collection file
     collection.write("collection.db")

@@ -1,10 +1,13 @@
 from __future__ import annotations
+
 import pickle
 import sqlite3
+from sqlite3 import Connection, Error
+
 import lz4.frame
-from sqlite3 import Error
 
 _DB_NAME: str = r"_gen_storage.db"
+_conn: Connection
 
 
 def _create_table():
@@ -19,7 +22,7 @@ def _create_table():
 
 
 def _create_connection():
-    """ create a database connection to a SQLite database """
+    """create a database connection to a SQLite database"""
 
     global _conn
 
@@ -31,7 +34,7 @@ def _create_connection():
 
     try:
         _conn = sqlite3.connect(_DB_NAME)
-        _conn.execute('PRAGMA auto_vacuum = FULL')
+        _conn.execute("PRAGMA auto_vacuum = FULL")
         _create_table()
     except Error as e:
         print(e)
