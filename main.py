@@ -11,10 +11,9 @@ OSU_DB_FILE: str = "C:\Games\osu!\osu!.db"
 OSU_COLLECTION_FILE: str = "C:\Games\osu!\collection.db"
 OSU_SONGS_FOLDER: str = "E:\Games\osu!\Songs"
 # either change this to True or delte _gen_osu!.db to rescan original osu!.db
-RESCAN_OSU_DB: bool = True
+RESCAN_OSU_DB: bool = False
 
 collection: Collection = Collection()
-collection_baka: Collection = Collection()
 
 
 def on_start() -> None:
@@ -22,7 +21,6 @@ def on_start() -> None:
     use this method to read collection or initialize other variables
     """
     # collection.read(OSU_COLLECTION_FILE)
-    collection_baka.read("uruha.db")
 
 
 def songs_filter(song_info: Song.Info) -> bool:
@@ -34,7 +32,7 @@ def songs_filter(song_info: Song.Info) -> bool:
 
     # return song_info.gameplay_mode == 3 and song_info.md5_hash in collection.collections["🎹 LN"]  # only accept songs in collection
     # check if song is present in any collection
-    # return any(song_info.md5_hash in md5s for md5s in collection_baka.collections.values())
+    # return any(song_info.md5_hash in md5s for md5s in collection.collections.values())
 
     if song_info.gameplay_mode != 3:  # 3 is mania
         return False
