@@ -10,3 +10,4 @@ colorama==0.4.6
     # via tqdm
 tqdm==4.64.1
     # via -r requirements.in
+lz4==4.3.2

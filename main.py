@@ -7,9 +7,9 @@ from osuclasses import Collection, Song
 import storagedb
 from timeslice import Note, Timeslice
 
-OSU_DB_FILE: str = "C:\Games\osu!\osu!.db"
-OSU_COLLECTION_FILE: str = "C:\Games\osu!\collection.db"
-OSU_SONGS_FOLDER: str = "E:\Games\osu!\Songs"
+OSU_DB_FILE: str = r"C:\Games\osu!\osu!.db"
+OSU_COLLECTION_FILE: str = r"C:\Games\osu!\collection.db"
+OSU_SONGS_FOLDER: str = r"C:\Games\osu!\Songs"
 # either change this to True or delte _gen_osu!.db to rescan original osu!.db
 RESCAN_OSU_DB: bool = False
 
@@ -29,7 +29,6 @@ def songs_filter(song_info: Song.Info) -> bool:
     song_info is what's available via osu!.db
     make sure to return True for songs to keep
     """
-
     # return song_info.gameplay_mode == 3 and song_info.md5_hash in collection.collections["🎹 LN"]  # only accept songs in collection
     # check if song is present in any collection
     # return any(song_info.md5_hash in md5s for md5s in collection.collections.values())
@@ -40,11 +39,24 @@ def songs_filter(song_info: Song.Info) -> bool:
     if song_info.circle_size != 7:  # filter out all non-7k
         return False
 
+    if song_info.folder_name.startswith("[_O2Jam_] Xeno"):
+        return False
+
+    if song_info.folder_name.startswith("[_O2Jam_] Fantasia"):
+        return False
+
+    if song_info.folder_name.startswith("[_O2Jam_] Jupiter"):
+        return False
+
     if song_info.folder_name.startswith("- # IIDX 24 SINOBUZ"):
         return False
 
     if song_info.folder_name.startswith("[_BMS_]"):
         return False
+    
+    # return song_info.song_title.startswith("T")
+    
+    # return song_info.song_title == "Triumphal Return" and song_info.mapper == "Sebaex" and song_info.difficulty == "7K Another"
 
     return True  # make sure to return True for all other songs
 
@@ -70,11 +82,51 @@ def songs_apply(encoded_song_data: str, song_info: Song.Info):
     # 1:33 min with compression ???
 
     slices: list[Timeslice] = storagedb.select_object("slices", song_info.md5_hash, decompress=True)  # type: ignore
-
+    song = None
     if slices is None:
         song: Song = songdb.decode_to_song(encoded_song_data, song_info)
         slices: list[Timeslice] = Timeslice.generate_timeslices(song)
         storagedb.insert_object("slices", song_info.md5_hash, slices, compress=True)
+        
+    column_count = song_info.circle_size
+    
+    score = 0
+    
+    total_hold_ends = 0
+    
+    for slice in slices:
+        holds = 0
+        
+        for note in slice.notes:
+            if note == Note.HOLD:
+                holds += 1
+            elif note == Note.HOLD_END:
+                total_hold_ends += 1
+        
+        for note in slice.notes:
+            if note == Note.HOLD_END and holds > 0:
+                score += 1
+                
+    if total_hold_ends != song_info.num_sliders:
+        print(f"INFO: Slider count mismatch: Got {total_hold_ends}, should be {song_info.num_sliders} for {song_info.md5_hash}: {song_info.artist} - {song_info.song_title} [{song_info.difficulty}]")                
+
+    weight = 0 if total_hold_ends == 0 else score / total_hold_ends
+                
+                
+    key = round(weight, 1)
+
+    if key < 1:
+        key = str(key) + " - " + str(round(key + 0.1, 1))
+    else:
+        key = str(key)
+
+    if key not in collection.collections:
+        collection.collections[key] = []
+    collection.collections[key].append(song_info.md5_hash)
+    
+    
+    
+    return 
 
     column_count = song_info.circle_size
 

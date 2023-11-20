@@ -63,7 +63,7 @@ def start():
     tqdm.write(f"{len(filtered_md5s)} songs accepted")
 
     filtered_md5s = sorted(filtered_md5s)
-    filtered_md5s = deque(filtered_md5s[5:])
+    filtered_md5s = deque(filtered_md5s)
 
     # this is this scuffed to not have to load all songs into memory all at once and rather iterate over them
     rows: Cursor = osudb.select_all_song_info()
@@ -81,9 +81,13 @@ def start():
 
             filtered_md5s.popleft()  # pop md5
 
-            data = next(it)[0]
+            data = next(it, None)
+            
+            if not data:
+                print("\nINFO: premature break", )
+                break
 
-            main.songs_apply(data, song_info)
+            main.songs_apply(data[0], song_info)
 
             pbar.update(1)
 
